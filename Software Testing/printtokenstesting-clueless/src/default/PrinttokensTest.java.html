@@ -1,0 +1,470 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../../jacoco-resources/report.gif" type="image/gif"/><title>PrinttokensTest.java</title><link rel="stylesheet" href="../../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../../index.html" class="el_report">PrinttokensTest (1) (Dec 9, 2024 11:52:52 PM)</a> &gt; <a href="../../index.html" class="el_group">printtokenstesting-clueless</a> &gt; <a href="../index.html" class="el_bundle">src</a> &gt; <a href="index.source.html" class="el_package">default</a> &gt; <span class="el_source">PrinttokensTest.java</span></div><h1>PrinttokensTest.java</h1><pre class="source lang-java linenums">import static org.junit.Assert.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.io.StringReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static org.junit.contrib.java.lang.system.TextFromStandardInputStream.emptyStandardInputStream;
+
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.contrib.java.lang.system.SystemOutRule;
+import org.junit.contrib.java.lang.system.TextFromStandardInputStream;
+
+<span class="nc" id="L18">public class PrinttokensTest {</span>
+	@Rule
+<span class="nc" id="L20">    public final SystemOutRule systemOutRule = new SystemOutRule().enableLog();</span>
+
+    @Rule
+<span class="nc" id="L23">    public final TextFromStandardInputStream systemInMock = emptyStandardInputStream();</span>
+
+    @Test
+    public void testOpen_character_stream() {
+        // [1,2,4]
+        // input: String fname = null
+        // expected output: returns a BufferReader for System.in
+<span class="nc" id="L30">        Printtokens printtokens = new Printtokens();</span>
+<span class="nc" id="L31">        BufferedReader result1 = printtokens.open_character_stream(null);</span>
+<span class="nc" id="L32">        assertNotNull(result1);</span>
+<span class="nc" id="L33">        assertTrue(result1.getClass().equals(BufferedReader.class));</span>
+
+        // [1,3,4]
+        // input: String fname = &quot;existing_file.txt&quot;
+        // expected output: Returns a BufferReader for &quot;existing_file.txt&quot;
+<span class="nc" id="L38">        BufferedReader result2 = printtokens.open_character_stream(&quot;src/input.txt&quot;);</span>
+<span class="nc" id="L39">        assertNotNull(result2);</span>
+<span class="nc" id="L40">        assertTrue(result2 instanceof BufferedReader);</span>
+<span class="nc" id="L41">        System.out.println(&quot;stream opened\n&quot;);</span>
+<span class="nc" id="L42">    }</span>
+	@Test
+	public void testGet_char() {
+<span class="nc" id="L45">	    Printtokens printtokens = new Printtokens();</span>
+	    
+	    // Test 1: Normal case [1,2]
+<span class="nc" id="L48">	    String input = &quot;hello&quot;;</span>
+<span class="nc" id="L49">	    BufferedReader br = new BufferedReader(new StringReader(input));</span>
+<span class="nc" id="L50">	    int result = printtokens.get_char(br);</span>
+<span class="nc" id="L51">	    assertEquals(&quot;Should return ASCII value of 'h'&quot;, 104, result);</span>
+	    
+	    // Test 2: Force IOException using broken reader
+<span class="nc" id="L54">	    BufferedReader brokenReader = new BufferedReader(new StringReader(input)) {</span>
+	        @Override
+	        public void mark(int readAheadLimit) throws IOException {
+<span class="nc" id="L57">	            throw new IOException(&quot;Forced IOException&quot;);</span>
+	        }
+	    };
+	    
+<span class="nc" id="L61">	    int exceptionResult = printtokens.get_char(brokenReader);</span>
+<span class="nc" id="L62">	    assertEquals(&quot;Should return 0 when IOException occurs&quot;, 0, exceptionResult);</span>
+<span class="nc" id="L63">	}</span>
+
+	@Test
+	public void testUnget_char() throws IOException {
+<span class="nc" id="L67">	    Printtokens printtokens = new Printtokens();</span>
+
+	    // Test 1: Normal case - reset works successfully
+<span class="nc" id="L70">	    BufferedReader br = new BufferedReader(new StringReader(&quot;hello&quot;));</span>
+<span class="nc" id="L71">	    br.mark(10); // Mark the position for reset</span>
+<span class="nc" id="L72">	    assertEquals(&quot;Should return 0 after successful reset&quot;, 0, printtokens.unget_char(104, br));</span>
+
+	    // Test 2: IOException case - reset fails
+<span class="nc" id="L75">	    BufferedReader brokenReader = new BufferedReader(new StringReader(&quot;hello&quot;)) {</span>
+	        @Override
+	        public void reset() throws IOException {
+<span class="nc" id="L78">	            throw new IOException(&quot;Forced IOException&quot;);</span>
+	        }
+	    };
+	   
+<span class="nc" id="L82">	    assertEquals(&quot;Should return 0 when IOException occurs&quot;, 0, printtokens.unget_char(104, brokenReader));</span>
+<span class="nc" id="L83">	}</span>
+	@Test
+	public void testOpenTokenStream() throws IOException {
+<span class="nc" id="L86">	    Printtokens printtokens = new Printtokens();</span>
+
+	    // Case 1: fname is null
+<span class="nc" id="L89">	    BufferedReader br1 = printtokens.open_token_stream(null);</span>
+<span class="nc" id="L90">	    assertNotNull(&quot;BufferedReader should not be null for null input&quot;, br1);</span>
+<span class="nc" id="L91">	    assertTrue(&quot;BufferedReader should be configured for standard input&quot;,</span>
+<span class="nc" id="L92">	            br1.getClass().equals(InputStreamReader.class));</span>
+<span class="nc" id="L93">	    System.out.println(&quot;Case 1 passed: BufferedReader configured for standard input when fname is null.&quot;);</span>
+
+	    // Case 2: fname is an existing file
+<span class="nc" id="L96">	    String fileName = &quot;existing_file.txt&quot;;</span>
+<span class="nc" id="L97">	    Path tempFile = Files.createTempFile(fileName, &quot;.txt&quot;); // Create temporary file</span>
+<span class="nc" id="L98">	    Files.writeString(tempFile, &quot;sample text&quot;);</span>
+
+<span class="nc" id="L100">	    BufferedReader br2 = printtokens.open_token_stream(tempFile.toString());</span>
+<span class="nc" id="L101">	    assertNotNull(&quot;BufferedReader should not be null for a valid file input&quot;, br2);</span>
+<span class="nc" id="L102">	    assertTrue(&quot;BufferedReader should read from the correct file&quot;,</span>
+<span class="nc bnc" id="L103" title="All 4 branches missed.">	            br2.ready() &amp;&amp; br2.readLine().equals(&quot;sample text&quot;));</span>
+<span class="nc" id="L104">	    System.out.println(&quot;Case 2 passed: BufferedReader configured to read from the specified file.&quot;);</span>
+
+	    // Clean up temporary file
+<span class="nc" id="L107">	    Files.deleteIfExists(tempFile);</span>
+<span class="nc" id="L108">	}</span>
+	@Test
+	public void testGetTokenAllPaths() {
+<span class="nc" id="L111">	    Printtokens printtokens = new Printtokens(); // Ensure this matches your class</span>
+
+	    // Define test cases as input-output pairs
+<span class="nc" id="L114">	    Object[][] testCases = {</span>
+<span class="nc" id="L115">	        {&quot; abc&quot;, &quot;abc&quot;},</span>
+<span class="nc" id="L116">	        {&quot;;test&quot;, &quot;;test&quot;},</span>
+<span class="nc" id="L117">	        {&quot;abc&quot;, &quot;abc&quot;},</span>
+<span class="nc" id="L118">	        {&quot;abc;&quot;, &quot;abc&quot;},</span>
+<span class="nc" id="L119">	        {&quot;Hello&quot;, &quot;Hello&quot;},</span>
+<span class="nc" id="L120">	        {&quot;a;&quot;, &quot;a&quot;},</span>
+<span class="nc" id="L121">	        {&quot;;this is comment&quot;, &quot;;this is comment&quot;},</span>
+<span class="nc" id="L122">	        {&quot;abc+&quot;, &quot;abc&quot;},</span>
+<span class="nc" id="L123">	        {&quot;xyz;&quot;, &quot;xyz&quot;},</span>
+<span class="nc" id="L124">	        {&quot;xyz#&quot;, &quot;xyz&quot;},</span>
+<span class="nc" id="L125">	        {&quot;rst?&quot;, &quot;rst&quot;},</span>
+<span class="nc" id="L126">	        {&quot;+123&quot;, &quot;+&quot;},</span>
+<span class="nc" id="L127">	        {&quot;$&quot;, &quot;$&quot;},</span>
+<span class="nc" id="L128">	        {&quot;&quot;, null},       // Empty input</span>
+<span class="nc" id="L129">	        {&quot; &quot;, null},      // Only whitespace</span>
+<span class="nc" id="L130">	        {&quot;\n&quot;, null},     // Only newline</span>
+<span class="nc" id="L131">	        {&quot;\&quot;string\&quot;&quot;, &quot;\&quot;string\&quot;&quot;},</span>
+<span class="nc" id="L132">	        {&quot;\&quot;incomplete&quot;, &quot;\&quot;incomplete&quot;},</span>
+<span class="nc" id="L133">	        {&quot;\&quot;\&quot;&quot;, &quot;\&quot;\&quot;&quot;},</span>
+<span class="nc" id="L134">	        {&quot;;onlyComment\&quot;&quot;, &quot;;onlyComment\&quot;&quot;},</span>
+<span class="nc" id="L135">	        {&quot;out)&quot;, &quot;out&quot;},</span>
+<span class="nc" id="L136">	        {&quot;test123;&quot;, &quot;test123&quot;},</span>
+<span class="nc" id="L137">	        {&quot;multiple tokens here;&quot;, &quot;multiple&quot;},</span>
+<span class="nc" id="L138">	        {&quot;another+example&quot;, &quot;another&quot;}</span>
+	    };
+
+<span class="nc bnc" id="L141" title="All 2 branches missed.">	    for (Object[] testCase : testCases) {</span>
+<span class="nc" id="L142">	        String input = (String) testCase[0];</span>
+<span class="nc" id="L143">	        String expected = (String) testCase[1];</span>
+
+<span class="nc" id="L145">	        BufferedReader br = new BufferedReader(new StringReader(input));</span>
+
+	        try {
+<span class="nc" id="L148">	            String result = printtokens.get_token(br);</span>
+
+	            // Debugging Log for Failing Cases
+<span class="nc" id="L151">	            System.out.println(&quot;Input: \&quot;&quot; + input + &quot;\&quot;, Expected: \&quot;&quot; + expected + &quot;\&quot;, Got: \&quot;&quot; + result + &quot;\&quot;&quot;);</span>
+
+<span class="nc" id="L153">	            assertEquals(&quot;Failed for input: \&quot;&quot; + input + &quot;\&quot;&quot;, expected, result);</span>
+<span class="nc" id="L154">	        } catch (Exception e) {</span>
+<span class="nc" id="L155">	            e.printStackTrace(); // Log the complete stack trace for debugging</span>
+<span class="nc" id="L156">	            fail(&quot;Exception occurred for input: \&quot;&quot; + input + &quot;\&quot;. Exception: &quot; + e.getMessage());</span>
+	        }
+	    }
+<span class="nc" id="L159">	}</span>
+	@Test
+	public void testIsTokenEnd() {
+
+	    // Test case: [1,3,7,11,13,15]
+<span class="nc" id="L164">	    assertFalse(&quot;Input: str_com_id=0, res=65, Output: false&quot;, </span>
+<span class="nc" id="L165">	        Printtokens.is_token_end(0, 65));</span>
+
+	    // Test case: [1,3,7,11,13,14]
+<span class="nc" id="L168">	    assertTrue(&quot;Input: str_com_id=0, res=59, Output: true&quot;, </span>
+<span class="nc" id="L169">	        Printtokens.is_token_end(0, 59));</span>
+
+	    // Test case: [1,3,7,11,12]
+<span class="nc" id="L172">	    assertTrue(&quot;Input: str_com_id=0, res=41, Output: true&quot;, </span>
+<span class="nc" id="L173">	        Printtokens.is_token_end(0, 41));</span>
+
+	    // Test case: [1,2]
+<span class="nc" id="L176">	    assertTrue(&quot;Input: str_com_id=0, res=-1, Output: true&quot;, </span>
+<span class="nc" id="L177">	        Printtokens.is_token_end(0, -1));</span>
+
+	    // Test case: [1,3,4,6]
+<span class="nc" id="L180">	    assertFalse(&quot;Input: str_com_id=1, res=65, Output: false&quot;, </span>
+<span class="nc" id="L181">	        Printtokens.is_token_end(1, 65));</span>
+
+	    // Test case: [1,3,4,5]
+<span class="nc" id="L184">	    assertTrue(&quot;Input: str_com_id=1, res=34, Output: true&quot;, </span>
+<span class="nc" id="L185">	        Printtokens.is_token_end(1, 34));</span>
+
+	    // Test case: [1,3,7,8,10]
+<span class="nc" id="L188">	    assertFalse(&quot;Input: str_com_id=2, res=65, Output: false&quot;, </span>
+<span class="nc" id="L189">	        Printtokens.is_token_end(2, 65));</span>
+
+	    // Test case: [1,3,7,8,9]
+<span class="nc" id="L192">	    assertTrue(&quot;Input: str_com_id=2, res=10, Output: true&quot;, </span>
+<span class="nc" id="L193">	        Printtokens.is_token_end(2, 10));</span>
+<span class="nc" id="L194">	}</span>
+
+	@Test
+	public void testToken_type() {
+	    
+
+	    // Valid cases
+<span class="nc" id="L201">	    assertEquals(&quot;Should return 1 for a keyword&quot;, 1, Printtokens.token_type(&quot;if&quot;));</span>
+<span class="nc" id="L202">	    assertEquals(&quot;Should return 2 for a special symbol&quot;, 2, Printtokens.token_type(&quot;(&quot;));</span>
+<span class="nc" id="L203">	    assertEquals(&quot;Should return 43 for a character constant&quot;, 43, Printtokens.token_type(&quot;#c&quot;));</span>
+<span class="nc" id="L204">	    assertEquals(&quot;Should return 3 for an identifier&quot;, 3, Printtokens.token_type(&quot;hello123&quot;));</span>
+<span class="nc" id="L205">	    assertEquals(&quot;Should return 41 for a number constant&quot;, 41, Printtokens.token_type(&quot;12345&quot;));</span>
+<span class="nc" id="L206">	    assertEquals(&quot;Should return 42 for a string constant&quot;, 42, Printtokens.token_type(&quot;\&quot;hello\&quot;&quot;));</span>
+<span class="nc" id="L207">	    assertEquals(&quot;Should return 5 for a comment&quot;, 5, Printtokens.token_type(&quot;;comment&quot;));</span>
+<span class="nc" id="L208">	    assertEquals(&quot;Should return 0 for an invalid token&quot;, 0, Printtokens.token_type(&quot;@invalid&quot;));</span>
+
+	    // Edge cases
+<span class="nc" id="L211">	    assertEquals(&quot;Should return 43 for a valid char constant&quot;, 43, Printtokens.token_type(&quot;#a&quot;));</span>
+<span class="nc" id="L212">	    assertEquals(&quot;Should return 3 for valid identifier&quot;, 3, Printtokens.token_type(&quot;a123&quot;));</span>
+<span class="nc" id="L213">	    assertEquals(&quot;Should return 0 for invalid token&quot;, 0, Printtokens.token_type(&quot;#1abc&quot;));</span>
+<span class="nc" id="L214">	}</span>
+
+	@Test
+	public void testPrint_token() {
+<span class="nc" id="L218">	    Printtokens printtokens = new Printtokens();</span>
+
+	    // Redirect output to capture system output for assertions
+<span class="nc" id="L221">	    systemOutRule.clearLog();</span>
+
+	    // Test 1: Error type
+<span class="nc" id="L224">	    printtokens.print_token(&quot;@&quot;);</span>
+<span class="nc" id="L225">	    assertEquals(&quot;error,\&quot;@\&quot;.\n&quot;, systemOutRule.getLog());</span>
+<span class="nc" id="L226">	    systemOutRule.clearLog();</span>
+
+	    // Test 2: Keyword
+<span class="nc" id="L229">	    printtokens.print_token(&quot;if&quot;);</span>
+<span class="nc" id="L230">	    assertEquals(&quot;keyword,\&quot;if\&quot;.\n&quot;, systemOutRule.getLog());</span>
+<span class="nc" id="L231">	    systemOutRule.clearLog();</span>
+
+	    // Test 3: Special symbol (e.g., lparen)
+<span class="nc" id="L234">	    printtokens.print_token(&quot;(&quot;);</span>
+<span class="nc" id="L235">	    assertEquals(&quot;lparen.\n&quot;, systemOutRule.getLog());</span>
+<span class="nc" id="L236">	    systemOutRule.clearLog();</span>
+
+	    // Test 4: Identifier
+<span class="nc" id="L239">	    printtokens.print_token(&quot;a123&quot;);</span>
+<span class="nc" id="L240">	    assertEquals(&quot;identifier,\&quot;a123\&quot;.\n&quot;, systemOutRule.getLog());</span>
+<span class="nc" id="L241">	    systemOutRule.clearLog();</span>
+
+	    // Test 5: Numeric constant
+<span class="nc" id="L244">	    printtokens.print_token(&quot;123&quot;);</span>
+<span class="nc" id="L245">	    assertEquals(&quot;numeric,123.\n&quot;, systemOutRule.getLog());</span>
+<span class="nc" id="L246">	    systemOutRule.clearLog();</span>
+
+	    // Test 6: String constant
+<span class="nc" id="L249">	    printtokens.print_token(&quot;\&quot;hello\&quot;&quot;);</span>
+<span class="nc" id="L250">	    assertEquals(&quot;string,\&quot;hello\&quot;.\n&quot;, systemOutRule.getLog());</span>
+<span class="nc" id="L251">	    systemOutRule.clearLog();</span>
+
+	    // Test 7: Character constant
+<span class="nc" id="L254">	    printtokens.print_token(&quot;#a&quot;);</span>
+<span class="nc" id="L255">	    assertEquals(&quot;character,\&quot;a\&quot;.\n&quot;, systemOutRule.getLog());</span>
+<span class="nc" id="L256">	    systemOutRule.clearLog();</span>
+
+	    // Test 8: Comment
+<span class="nc" id="L259">	    printtokens.print_token(&quot;;&quot;);</span>
+<span class="nc" id="L260">	    assertEquals(&quot;comment,\&quot;;\&quot;.\n&quot;, systemOutRule.getLog());</span>
+<span class="nc" id="L261">	    systemOutRule.clearLog();</span>
+
+	    // Test 9: Fault (Unexpected token type, e.g., null or unknown)
+<span class="nc" id="L264">	    printtokens.print_token(&quot;~&quot;);</span>
+<span class="nc" id="L265">	    assertEquals(&quot;error,\&quot;~\&quot;.\n&quot;, systemOutRule.getLog()); // Ensuring default error handling for unexpected tokens</span>
+<span class="nc" id="L266">	    systemOutRule.clearLog();</span>
+<span class="nc" id="L267">	}</span>
+
+	@Test
+	public void testIsComment() {
+	    // Case 1: Input starts with a semicolon (';'), which has ASCII code 59
+<span class="nc" id="L272">	    assertTrue(&quot;Should return true for semicolon as the first character&quot;, </span>
+<span class="nc" id="L273">	               Printtokens.is_comment(&quot;;&quot;));</span>
+
+	    // Case 2: Input does not start with a semicolon
+<span class="nc" id="L276">	    assertFalse(&quot;Should return false for input without semicolon as the first character&quot;, </span>
+<span class="nc" id="L277">	                Printtokens.is_comment(&quot;c&quot;));</span>
+<span class="nc" id="L278">	}</span>
+
+	@Test
+	public void testIs_keyword() {
+	    // Test for true outputs
+<span class="nc" id="L283">	    assertTrue(&quot;Keyword 'and' should return true&quot;, Printtokens.is_keyword(&quot;and&quot;));</span>
+<span class="nc" id="L284">	    assertTrue(&quot;Keyword 'or' should return true&quot;, Printtokens.is_keyword(&quot;or&quot;));</span>
+<span class="nc" id="L285">	    assertTrue(&quot;Keyword 'if' should return true&quot;, Printtokens.is_keyword(&quot;if&quot;));</span>
+<span class="nc" id="L286">	    assertTrue(&quot;Keyword 'xor' should return true&quot;, Printtokens.is_keyword(&quot;xor&quot;));</span>
+<span class="nc" id="L287">	    assertTrue(&quot;Keyword 'lambda' should return true&quot;, Printtokens.is_keyword(&quot;lambda&quot;));</span>
+<span class="nc" id="L288">	    assertTrue(&quot;Keyword '=&gt;' should return true&quot;, Printtokens.is_keyword(&quot;=&gt;&quot;));</span>
+
+	    // Test for false outputs
+<span class="nc" id="L291">	    assertFalse(&quot;Non-keyword 'while' should return false&quot;, Printtokens.is_keyword(&quot;while&quot;));</span>
+<span class="nc" id="L292">	    assertFalse(&quot;Empty string should return false&quot;, Printtokens.is_keyword(&quot;&quot;));</span>
+<span class="nc" id="L293">	    assertFalse(&quot;Random string 'xyz' should return false&quot;, Printtokens.is_keyword(&quot;xyz&quot;));</span>
+<span class="nc" id="L294">	}</span>
+
+	@Test
+	public void testIs_char_constant() {
+<span class="nc" id="L298">		assertFalse(&quot;Should return false for missing #&quot;, Printtokens.is_char_constant(&quot;c&quot;));</span>
+<span class="nc" id="L299">		assertFalse(&quot;Should return false for non-letter second character&quot;, Printtokens.is_char_constant(&quot;#1&quot;));</span>
+<span class="nc" id="L300">		assertFalse(&quot;Should return false for too long input&quot;, Printtokens.is_char_constant(&quot;#abc&quot;));</span>
+<span class="nc" id="L301">		assertTrue(&quot;Should return true for valid input&quot;, Printtokens.is_char_constant(&quot;#c&quot;));</span>
+<span class="nc" id="L302">	}</span>
+
+	@Test
+	public void testIsNumConstant() {
+	    // Case 1: Input &quot;12b&quot;, expected output false
+<span class="nc" id="L307">	    assertFalse(&quot;Expected false for input '12b'&quot;,Printtokens.is_num_constant(&quot;12b&quot;));</span>
+
+	    // Case 2: Input &quot;12&quot;, expected output true
+<span class="nc" id="L310">	    assertTrue(&quot;Expected true for input '12'&quot;, Printtokens.is_num_constant(&quot;12&quot;));</span>
+
+	    // Case 3: Input &quot;1b&quot;, expected output false
+<span class="nc" id="L313">	    assertFalse(&quot;Expected false for input '1b'&quot;, Printtokens.is_num_constant(&quot;1b&quot;));</span>
+
+	    // Case 4: Input &quot;9&quot;, expected output true
+<span class="nc" id="L316">	    assertTrue(&quot;Expected true for input '9'&quot;, Printtokens.is_num_constant(&quot;9&quot;));</span>
+
+	    // Case 5: Input &quot;abc&quot;, expected output false
+<span class="nc" id="L319">	    assertFalse(&quot;Expected false for input 'abc'&quot;, Printtokens.is_num_constant(&quot;abc&quot;));</span>
+<span class="nc" id="L320">	}</span>
+
+	@Test
+	public void testIsStringConstant() {
+	    // Valid cases
+<span class="nc" id="L325">	    assertEquals(&quot;Should return true for a valid string constant&quot;, true, Printtokens.is_str_constant(&quot;\&quot;asd\&quot;&quot;));</span>
+<span class="nc" id="L326">	    assertEquals(&quot;Should return true for a numeric string constant&quot;, true, Printtokens.is_str_constant(&quot;\&quot;123\&quot;&quot;));</span>
+
+	    // Invalid cases
+<span class="nc" id="L329">	    assertEquals(&quot;Should return false for a string without quotes&quot;, false, Printtokens.is_str_constant(&quot;Hello&quot;));</span>
+<span class="nc" id="L330">	    assertEquals(&quot;Should return false for a string with only an opening quote&quot;, false, Printtokens.is_str_constant(&quot;\&quot;hello&quot;));</span>
+<span class="nc" id="L331">	    assertEquals(&quot;Should return false for a string with only a closing quote&quot;, false, Printtokens.is_str_constant(&quot;hello\&quot;&quot;));</span>
+<span class="nc" id="L332">	    assertEquals(&quot;Should return false for a string with inner quotes&quot;, false, Printtokens.is_str_constant(&quot;\&quot;he\&quot;llo\&quot;&quot;));</span>
+<span class="nc" id="L333">	}</span>
+
+	@Test
+	public void testIs_identifier() {
+	    // Test Case 1: Input &quot;a#&quot;, Expected Output: false
+<span class="nc" id="L338">	    assertFalse(&quot;Expected false for input 'a#'&quot;, Printtokens.is_identifier(&quot;a#&quot;));</span>
+
+	    // Test Case 2: Input &quot;a1&quot;, Expected Output: true (correcting the fault)
+<span class="nc" id="L341">	    assertTrue(&quot;Expected true for input 'a1'&quot;, Printtokens.is_identifier(&quot;a1&quot;));</span>
+
+	    // Test Case 3: Input &quot;a$&quot;, Expected Output: false
+<span class="nc" id="L344">	    assertFalse(&quot;Expected false for input 'a$'&quot;, Printtokens.is_identifier(&quot;a$&quot;));</span>
+
+	    // Test Case 4: Input &quot;A&quot;, Expected Output: true
+<span class="nc" id="L347">	    assertTrue(&quot;Expected true for input 'A'&quot;, Printtokens.is_identifier(&quot;A&quot;));</span>
+
+	    // Test Case 5: Input &quot;123hello&quot;, Expected Output: false (correcting the fault)
+<span class="nc" id="L350">	    assertFalse(&quot;Expected false for input '123hello'&quot;, Printtokens.is_identifier(&quot;123hello&quot;));</span>
+
+	    // Test Case 6: Input &quot;hello123&quot;, Expected Output: true
+<span class="nc" id="L353">	    assertTrue(&quot;Expected true for input 'hello123'&quot;, Printtokens.is_identifier(&quot;hello123&quot;));</span>
+
+	    // Auxiliary method implementation
+<span class="nc" id="L356">	}</span>
+
+
+	@Test
+	public void testPrint_spec_symbol() {
+
+	    // Test case 1: Input &quot;(&quot;
+<span class="nc" id="L363">	    systemOutRule.clearLog();</span>
+<span class="nc" id="L364">	    Printtokens.print_spec_symbol(&quot;(&quot;);</span>
+<span class="nc" id="L365">	    assertEquals(&quot;lparen.\n&quot;, systemOutRule.getLog());</span>
+	    
+	    // Test case 2: Input &quot;)&quot;
+<span class="nc" id="L368">	    systemOutRule.clearLog();</span>
+<span class="nc" id="L369">	    Printtokens.print_spec_symbol(&quot;)&quot;);</span>
+<span class="nc" id="L370">	    assertEquals(&quot;rparen.\n&quot;, systemOutRule.getLog());</span>
+
+	    // Test case 3: Input &quot;[&quot;
+<span class="nc" id="L373">	    systemOutRule.clearLog();</span>
+<span class="nc" id="L374">	    Printtokens.print_spec_symbol(&quot;[&quot;);</span>
+<span class="nc" id="L375">	    assertEquals(&quot;lsquare.\n&quot;, systemOutRule.getLog());</span>
+
+	    // Test case 4: Input &quot;]&quot;
+<span class="nc" id="L378">	    systemOutRule.clearLog();</span>
+<span class="nc" id="L379">	    Printtokens.print_spec_symbol(&quot;]&quot;);</span>
+<span class="nc" id="L380">	    assertEquals(&quot;rsquare.\n&quot;, systemOutRule.getLog());</span>
+
+	    // Test case 5: Input &quot;'&quot;
+<span class="nc" id="L383">	    systemOutRule.clearLog();</span>
+<span class="nc" id="L384">	    Printtokens.print_spec_symbol(&quot;'&quot;);</span>
+<span class="nc" id="L385">	    assertEquals(&quot;quote.\n&quot;, systemOutRule.getLog());</span>
+
+	    // Test case 6: Input &quot;`&quot;
+<span class="nc" id="L388">	    systemOutRule.clearLog();</span>
+<span class="nc" id="L389">	    Printtokens.print_spec_symbol(&quot;`&quot;);</span>
+<span class="nc" id="L390">	    assertEquals(&quot;bquote.\n&quot;, systemOutRule.getLog());</span>
+
+	    // Test case 7: Input &quot;,&quot;
+<span class="nc" id="L393">	    systemOutRule.clearLog();</span>
+<span class="nc" id="L394">	    Printtokens.print_spec_symbol(&quot;,&quot;);</span>
+<span class="nc" id="L395">	    assertEquals(&quot;comma.\n&quot;, systemOutRule.getLog());</span>
+
+	    // Test case 8: Input &quot;y&quot; (no output expected)
+<span class="nc" id="L398">	    systemOutRule.clearLog();</span>
+<span class="nc" id="L399">	    Printtokens.print_spec_symbol(&quot;y&quot;);</span>
+<span class="nc" id="L400">	    assertEquals(&quot;&quot;, systemOutRule.getLog());</span>
+<span class="nc" id="L401">	}</span>
+
+	@Test
+	public void testIs_spec_symbol() {
+
+<span class="nc" id="L406">		assertTrue(&quot;Expected true for '('&quot;, Printtokens.is_spec_symbol('('));</span>
+<span class="nc" id="L407">	    assertTrue(&quot;Expected true for ')'&quot;, Printtokens.is_spec_symbol(')'));</span>
+<span class="nc" id="L408">	    assertTrue(&quot;Expected true for '['&quot;, Printtokens.is_spec_symbol('['));</span>
+<span class="nc" id="L409">	    assertTrue(&quot;Expected true for ']'&quot;, Printtokens.is_spec_symbol(']'));</span>
+<span class="nc" id="L410">	    assertTrue(&quot;Expected true for '\''&quot;, Printtokens.is_spec_symbol('\''));</span>
+<span class="nc" id="L411">	    assertTrue(&quot;Expected true for '`'&quot;, Printtokens.is_spec_symbol('`'));</span>
+<span class="nc" id="L412">	    assertTrue(&quot;Expected true for ','&quot;, Printtokens.is_spec_symbol(','));</span>
+
+	    // Invalid symbols
+<span class="nc" id="L415">	    assertFalse(&quot;Expected false for '/'&quot;, Printtokens.is_spec_symbol('/'));</span>
+<span class="nc" id="L416">	    assertFalse(&quot;Expected false for 'a'&quot;, Printtokens.is_spec_symbol('a'));</span>
+<span class="nc" id="L417">	    assertFalse(&quot;Expected false for space&quot;, Printtokens.is_spec_symbol(' '));</span>
+<span class="nc" id="L418">	    assertFalse(&quot;Expected false for digit '1'&quot;, Printtokens.is_spec_symbol('1'));</span>
+<span class="nc" id="L419">	}</span>
+
+	@Test
+
+	public void testMain() throws IOException {
+	    // Test case 1: Empty args with valid console input
+<span class="nc" id="L425">	    systemInMock.provideLines(&quot;hello #a&quot;);</span>
+<span class="nc" id="L426">	    String[] args1 = {};</span>
+<span class="nc" id="L427">	    Printtokens.main(args1);</span>
+<span class="nc" id="L428">	    assertTrue(systemOutRule.getLog().contains(&quot;identifier,\&quot;hello\&quot;&quot;));</span>
+<span class="nc" id="L429">	    assertTrue(systemOutRule.getLog().contains(&quot;character,\&quot;a\&quot;&quot;));</span>
+<span class="nc" id="L430">	    systemOutRule.clearLog();</span>
+
+	    // Test case 2: Empty args with no input
+<span class="nc" id="L433">	    systemInMock.provideLines(&quot;&quot;);</span>
+<span class="nc" id="L434">	    String[] args2 = {};</span>
+<span class="nc" id="L435">	    Printtokens.main(args2);</span>
+<span class="nc" id="L436">	    assertTrue(systemOutRule.getLog().isEmpty());</span>
+<span class="nc" id="L437">	    systemOutRule.clearLog();</span>
+
+	    // Test case 3: File input with tokens (e.g., &quot;hello #a&quot;)
+<span class="nc" id="L440">	    File tempFile1 = File.createTempFile(&quot;test&quot;, &quot;.txt&quot;);</span>
+<span class="nc" id="L441">	    PrintWriter writer1 = new PrintWriter(tempFile1);</span>
+<span class="nc" id="L442">	    writer1.println(&quot;hello #a&quot;);</span>
+<span class="nc" id="L443">	    writer1.close();</span>
+<span class="nc" id="L444">	    String[] args3 = {tempFile1.getAbsolutePath()};</span>
+<span class="nc" id="L445">	    Printtokens.main(args3);</span>
+<span class="nc" id="L446">	    assertTrue(systemOutRule.getLog().contains(&quot;identifier,\&quot;hello\&quot;&quot;));</span>
+<span class="nc" id="L447">	    assertTrue(systemOutRule.getLog().contains(&quot;character,\&quot;a\&quot;&quot;));</span>
+<span class="nc" id="L448">	    tempFile1.delete();</span>
+<span class="nc" id="L449">	    systemOutRule.clearLog();</span>
+
+	    // Test case 4: File input with a single token (e.g., &quot;hello&quot;)
+<span class="nc" id="L452">	    File tempFile2 = File.createTempFile(&quot;test&quot;, &quot;.txt&quot;);</span>
+<span class="nc" id="L453">	    PrintWriter writer2 = new PrintWriter(tempFile2);</span>
+<span class="nc" id="L454">	    writer2.println(&quot;hello&quot;);</span>
+<span class="nc" id="L455">	    writer2.close();</span>
+<span class="nc" id="L456">	    String[] args4 = {tempFile2.getAbsolutePath()};</span>
+<span class="nc" id="L457">	    Printtokens.main(args4);</span>
+<span class="nc" id="L458">	    assertTrue(systemOutRule.getLog().contains(&quot;identifier,\&quot;hello\&quot;&quot;));</span>
+<span class="nc" id="L459">	    tempFile2.delete();</span>
+<span class="nc" id="L460">	    systemOutRule.clearLog();</span>
+
+	    // Test case 5: Invalid args (more than one argument)
+<span class="nc" id="L463">	    String[] args5 = {&quot;arg1&quot;, &quot;arg2&quot;};</span>
+<span class="nc" id="L464">	    Printtokens.main(args5);</span>
+<span class="nc" id="L465">	    assertTrue(systemOutRule.getLog().contains(&quot;Error! Please give the token stream&quot;));</span>
+<span class="nc" id="L466">	    systemOutRule.clearLog();</span>
+<span class="nc" id="L467">	}</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span>PrinttokensTest (1) (Dec 9, 2024 11:52:52 PM)</div></body></html>
